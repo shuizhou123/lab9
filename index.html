@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ECE 210 Lab 9 · BLE Console</title>
+<style>
+  :root{
+    --bg:#f1f5f9;
+    --card:#ffffff;
+    --ink:#0f172a;
+    --ink-2:#475569;
+    --ink-3:#94a3b8;
+    --line:#e2e8f0;
+    --accent:#0ea5e9;
+    --accent-d:#0284c7;
+    --ok:#16a34a;
+    --bad:#dc2626;
+    --red:#ef4444;
+    --green:#22c55e;
+    --yellow:#eab308;
+    --purple:#8b5cf6;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px -12px rgba(15,23,42,.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--ink);
+    font-size:15px; line-height:1.5;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:0 12px 40px}
+
+  /* ---------- header ---------- */
+  header{
+    background:linear-gradient(160deg,#0b1220 0%,#132038 60%,#0f2a44 100%);
+    color:#e2e8f0; padding:calc(14px + env(safe-area-inset-top)) 0 14px;
+    position:sticky; top:0; z-index:30;
+    box-shadow:0 2px 14px rgba(2,6,23,.25);
+  }
+  .head-in{max-width:720px;margin:0 auto;padding:0 12px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:34px;height:34px;border-radius:10px;flex:0 0 auto;
+    background:linear-gradient(135deg,#0ea5e9,#6366f1);
+    display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;
+    box-shadow:0 4px 12px -4px #0ea5e9;
+  }
+  .title{font-weight:700;font-size:16px;letter-spacing:.2px}
+  .subtitle{font-size:11px;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
+  .statusbar{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;
+    background:rgba(148,163,184,.14); border:1px solid rgba(148,163,184,.25);
+    color:#cbd5e1; padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:600;
+    white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:#64748b;flex:0 0 auto;transition:.25s}
+  .dot.on{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.18)}
+  .dot.err{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.18)}
+  .dot.wait{background:#f59e0b;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .hbtns{display:flex;gap:8px;margin-left:auto}
+  .btn{
+    border:0;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:700;
+    font-family:inherit;cursor:pointer;transition:transform .07s, filter .15s, opacity .15s;
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
+  .btn-primary{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;box-shadow:0 6px 16px -8px #0ea5e9}
+  .btn-ghost{background:rgba(148,163,184,.16);color:#e2e8f0;border:1px solid rgba(148,163,184,.28)}
+  .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:10px}
+
+  /* ---------- tabs ---------- */
+  nav.tabs{
+    display:flex;gap:4px;background:#e2e8f0;padding:4px;border-radius:14px;
+    margin:14px 0 12px; position:relative;
+  }
+  nav.tabs button{
+    flex:1;border:0;background:transparent;font-family:inherit;font-size:13.5px;font-weight:700;
+    color:#64748b;padding:10px 6px;border-radius:11px;cursor:pointer;transition:.18s;
+    display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;
+  }
+  nav.tabs button small{font-size:10px;font-weight:600;opacity:.65}
+  nav.tabs button.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+
+  /* ---------- panels ---------- */
+  .panel{display:none;animation:fade .18s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+  .card > h3{margin:0 0 10px;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);font-weight:800}
+  .hint{font-size:12px;color:var(--ink-2);background:#f8fafc;border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:9px 11px;margin-top:10px;line-height:1.55}
+  .hint b{color:var(--ink)}
+
+  /* ---------- output chips ---------- */
+  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .chip{
+    border:1.5px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center;
+    font-size:11.5px;font-weight:700;color:var(--ink-3);background:#f8fafc;transition:.2s;
+  }
+  .chip .led{width:9px;height:9px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px;transition:.2s}
+  .chip[data-on="1"]{color:var(--ink);border-color:currentColor}
+  .chip[data-on="1"] .led{background:currentColor;box-shadow:0 0 10px currentColor}
+  .chip[data-out="0"]{color:var(--red)}
+  .chip[data-out="1"]{color:var(--green)}
+  .chip[data-out="2"]{color:#ca8a04}
+  .chip[data-out="3"]{color:var(--purple)}
+
+  /* ---------- button grid ---------- */
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .key{
+    position:relative;border:0;border-radius:14px;padding:15px 8px 13px;font-family:inherit;
+    font-size:13.5px;font-weight:800;cursor:pointer;transition:transform .07s,filter .15s;
+    display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.15;
+    color:#fff; box-shadow:0 6px 16px -10px rgba(15,23,42,.6);
+  }
+  .key:active{transform:scale(.955);filter:brightness(1.1)}
+  .key:disabled{opacity:.42;cursor:not-allowed;filter:grayscale(.35)}
+  .key .k{font-size:10.5px;font-weight:800;opacity:.8;letter-spacing:.8px}
+  .key .cap{font-size:12px;font-weight:700;opacity:.95}
+  .key.red{background:linear-gradient(150deg,#f87171,#dc2626)}
+  .key.green{background:linear-gradient(150deg,#4ade80,#16a34a)}
+  .key.yellow{background:linear-gradient(150deg,#facc15,#ca8a04)}
+  .key.purple{background:linear-gradient(150deg,#a78bfa,#7c3aed)}
+  .key.dark{background:linear-gradient(150deg,#475569,#1e293b)}
+  .key.span3{grid-column:1/-1;padding:16px}
+
+  /* ---------- toggle rows ---------- */
+  .row{
+    display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);
+  }
+  .row:last-child{border-bottom:0}
+  .row .meta{flex:1;min-width:0}
+  .row .nm{font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px}
+  .row .ch{font-size:11px;color:var(--ink-3);font-weight:700;letter-spacing:.4px}
+  .swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .switch{
+    position:relative;width:60px;height:34px;border-radius:999px;background:#cbd5e1;border:0;
+    cursor:pointer;transition:background .2s;flex:0 0 auto;padding:0;
+  }
+  .switch::after{
+    content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;
+    background:#fff;box-shadow:0 2px 5px rgba(15,23,42,.28);transition:transform .2s;
+  }
+  .switch:disabled{opacity:.5;cursor:not-allowed}
+  .switch[aria-checked="true"]{background:var(--ok)}
+  .switch[aria-checked="true"]::after{transform:translateX(26px)}
+  .ind{
+    width:38px;height:22px;border-radius:999px;background:#e2e8f0;border:1.5px solid #cbd5e1;
+    display:grid;place-items:center;flex:0 0 auto;font-size:9px;font-weight:800;color:#94a3b8;
+  }
+  .ind[data-on="1"]{background:#dcfce7;border-color:#22c55e;color:#15803d}
+  .ind-label{font-size:9px;color:var(--ink-3);font-weight:700;text-align:center;margin-top:2px}
+
+  /* ---------- debug ---------- */
+  textarea,input[type=text]{
+    width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;
+    border:1.5px solid var(--line);border-radius:12px;padding:12px;background:#f8fafc;color:var(--ink);
+    resize:vertical;outline:none;transition:.15s;
+  }
+  textarea:focus,input[type=text]:focus{border-color:var(--accent);background:#fff}
+  .debugrow{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .debugrow .btn{flex:1;min-width:110px}
+  .rxlog{
+    background:#0b1220;color:#7dd3fc;border-radius:12px;padding:11px;height:180px;overflow-y:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.7;
+    white-space:pre-wrap;word-break:break-all;
+  }
+  .rxlog .tx{color:#94a3b8}
+  .rxlog .rx{color:#86efac}
+  .rxlog .sys{color:#fbbf24}
+
+  /* ---------- settings ---------- */
+  .field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .field:last-child{border-bottom:0}
+  .field label{font-size:13.5px;font-weight:600;color:var(--ink)}
+  .field .desc{font-size:11px;color:var(--ink-3);font-weight:500;margin-top:2px}
+  select{
+    font-family:inherit;font-size:13px;font-weight:700;border:1.5px solid var(--line);
+    background:#f8fafc;border-radius:10px;padding:8px 10px;color:var(--ink);outline:none;
+  }
+  .mini-switch{
+    position:relative;width:50px;height:28px;border-radius:999px;background:#cbd5e1;border:0;cursor:pointer;
+    transition:background .2s;flex:0 0 auto;padding:0;
+  }
+  .mini-switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,.3);transition:transform .2s}
+  .mini-switch[aria-checked="true"]{background:var(--accent)}
+  .mini-switch[aria-checked="true"]::after{transform:translateX(22px)}
+
+  /* ---------- log table ---------- */
+  .loglist{max-height:52vh;overflow-y:auto;margin:0 -4px}
+  .logitem{
+    display:flex;align-items:center;gap:9px;padding:9px 6px;border-bottom:1px solid var(--line);font-size:12.5px;
+  }
+  .logitem:last-child{border-bottom:0}
+  .logitem .idx{width:22px;color:var(--ink-3);font-weight:700;font-size:11px;flex:0 0 auto}
+  .logitem .body{flex:1;min-width:0}
+  .logitem .act{font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .logitem .sub{font-size:10.5px;color:var(--ink-3);font-family:ui-monospace,monospace}
+  .mark{width:30px;height:30px;border-radius:9px;border:1.5px solid var(--line);background:#f8fafc;
+    display:grid;place-items:center;font-size:14px;cursor:pointer;flex:0 0 auto;color:#cbd5e1;transition:.15s;padding:0}
+  .mark.pass{background:#dcfce7;border-color:#22c55e;color:#15803d}
+  .mark.fail{background:#fee2e2;border-color:#ef4444;color:#b91c1c}
+  .empty{text-align:center;color:var(--ink-3);font-size:13px;padding:30px 10px;white-space:pre-line;line-height:1.9}
+
+  /* ---------- banner ---------- */
+  .banner{
+    background:#fef3c7;border:1px solid #fcd34d;color:#92400e;border-radius:12px;
+    padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px;line-height:1.5;
+  }
+  .banner.bad{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+  .banner.ok{background:#dcfce7;border-color:#86efac;color:#166534}
+
+  .footer{text-align:center;font-size:11px;color:var(--ink-3);padding:18px 0 6px;line-height:1.7}
+
+  @media (max-width:380px){
+    .grid3{gap:7px}
+    .key{padding:13px 5px 11px;font-size:12.5px}
+    nav.tabs button{font-size:12.5px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-in">
+    <div class="brand">
+      <div class="logo">BLE</div>
+      <div style="min-width:0">
+        <div class="title">ECE 210 · Lab 9 Console</div>
+        <div class="subtitle">HM-10 · Smartphone Monitoring &amp; Control</div>
+      </div>
+    </div>
+    <div class="statusbar">
+      <span class="pill"><span class="dot" id="dot"></span><span id="statusText">未连接</span></span>
+      <span class="hbtns">
+        <button class="btn btn-primary btn-sm" id="btnConnect">连接</button>
+        <button class="btn btn-ghost btn-sm" id="btnDisconnect" disabled>断开</button>
+      </span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="banner" id="banner" style="display:none"></div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="a" class="active">Lab A<small>ASCII 按钮</small></button>
+    <button data-tab="b">Lab B<small>自定义 GUI</small></button>
+    <button data-tab="debug">调试<small>Debug</small></button>
+    <button data-tab="log">记录<small>Record</small></button>
+  </nav>
+
+  <!-- ================= Lab A ================= -->
+  <section class="panel active" id="panel-a">
+    <div class="card">
+      <h3>输出状态 / Output State</h3>
+      <div class="chips">
+        <div class="chip" data-out="0" data-on="0"><div class="led"></div>RED<br>D3</div>
+        <div class="chip" data-out="1" data-on="0"><div class="led"></div>GREEN<br>D4</div>
+        <div class="chip" data-out="2" data-on="0"><div class="led"></div>YELLOW<br>D5</div>
+        <div class="chip" data-out="3" data-on="0"><div class="led"></div>BUZZER<br>D6</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Single-Character Commands</h3>
+      <div class="grid3">
+        <button class="key red" data-cmd="A" data-label="RED ON"><span class="cap">RED ON</span><span class="k">A</span></button>
+        <button class="key green" data-cmd="B" data-label="GREEN ON"><span class="cap">GREEN ON</span><span class="k">B</span></button>
+        <button class="key yellow" data-cmd="C" data-label="YELLOW ON"><span class="cap">YELLOW ON</span><span class="k">C</span></button>
+
+        <button class="key red" data-cmd="a" data-label="RED OFF"><span class="cap">RED OFF</span><span class="k">a</span></button>
+        <button class="key green" data-cmd="b" data-label="GREEN OFF"><span class="cap">GREEN OFF</span><span class="k">b</span></button>
+        <button class="key yellow" data-cmd="c" data-label="YELLOW OFF"><span class="cap">YELLOW OFF</span><span class="k">c</span></button>
+
+        <button class="key purple" data-cmd="D" data-label="BUZZER ON"><span class="cap">BUZZER ON</span><span class="k">D</span></button>
+        <button class="key dark" data-cmd="d" data-label="BUZZER OFF"><span class="cap">BUZZER OFF</span><span class="k">d</span></button>
+        <button class="key dark" data-cmd="X" data-label="ALL OFF"><span class="cap">ALL OFF</span><span class="k">X</span></button>
+      </div>
+      <div class="hint">
+        <b>Lab A 协议：</b>单字符，无包头。上排 = ON，中排 = OFF，右下 <b>X</b> = 全部关闭。
+        发送时会自动附加行尾（默认 LF），Arduino 端会忽略 <code>\r</code> / <code>\n</code>，与讲义 3.4 完全一致。
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Lab B ================= -->
+  <section class="panel" id="panel-b">
+    <div class="card">
+      <h3>Custom GUI · Channel Widgets</h3>
+
+      <div class="row">
+        <span class="swatch" style="background:#ef4444"></span>
+        <div class="meta"><div class="nm">Red LED</div><div class="ch">TOGGLE / INDICATOR · CH 0 · D3</div></div>
+        <button class="switch" role="switch" aria-checked="false" aria-label="Toggle Red LED" data-ch="0"></button>
+        <div><div class="ind" data-ind="0">OFF</div><div class="ind-label">IND</div></div>
+      </div>
+
+      <div class="row">
+        <span class="swatch" style="background:#22c55e"></span>
+        <div class="meta"><div class="nm">Green LED</div><div class="ch">TOGGLE / INDICATOR · CH 1 · D4</div></div>
+        <button class="switch" role="switch" aria-checked="false" aria-label="Toggle Green LED" data-ch="1"></button>
+        <div><div class="ind" data-ind="1">OFF</div><div class="ind-label">IND</div></div>
+      </div>
+
+      <div class="row">
+        <span class="swatch" style="background:#eab308"></span>
+        <div class="meta"><div class="nm">Yellow LED</div><div class="ch">TOGGLE / INDICATOR · CH 2 · D5</div></div>
+        <button class="switch" role="switch" aria-checked="false" aria-label="Toggle Yellow LED" data-ch="2"></button>
+        <div><div class="ind" data-ind="2">OFF</div><div class="ind-label">IND</div></div>
+      </div>
+
+      <div class="row">
+        <span class="swatch" style="background:#8b5cf6"></span>
+        <div class="meta"><div class="nm">Active Buzzer</div><div class="ch">TOGGLE / INDICATOR · CH 3 · D6</div></div>
+        <button class="switch" role="switch" aria-checked="false" aria-label="Toggle Buzzer" data-ch="3"></button>
+        <div><div class="ind" data-ind="3">OFF</div><div class="ind-label">IND</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Momentary Button</h3>
+      <div class="grid2">
+        <button class="key dark span3" id="btnAllOff" style="grid-column:1/-1"><span class="cap">ALL OFF</span><span class="k">BUTTON CH 0 · B0:P</span></button>
+      </div>
+      <div class="hint">
+        <b>Lab B 协议：</b><code>T0:1</code> / <code>T0:0</code> 表示通道 0 开/关；<code>B0:P</code> 表示按下 0 号按钮。
+        全部为 <b>newline-terminated</b> 文本。按下 ALL OFF 后，开关会回到 OFF，但讲义要求观察的
+        “App 端 Toggle 可能仍显示 ON” 现象，请在报告里说明：本 App 已将状态强制同步，属于改进点。
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Debug ================= -->
+  <section class="panel" id="panel-debug">
+    <div class="card">
+      <h3>Raw Send</h3>
+      <input type="text" id="rawInput" placeholder="例如  A   或   T0:1" autocomplete="off" spellcheck="false">
+      <div class="debugrow">
+        <button class="btn btn-primary" id="btnRawSend">发送</button>
+        <button class="btn btn-ghost" id="btnRawClear" style="background:#f1f5f9;color:#475569;border-color:#e2e8f0">清空输入</button>
+      </div>
+      <div class="hint">输入任意文本按 UTF-8 发送。若固件不在手边，可直接发 <code>A</code> 验证链路。</div>
+    </div>
+
+    <div class="card">
+      <h3>Receive / Traffic Log</h3>
+      <div class="rxlog" id="rxlog"></div>
+      <div class="debugrow">
+        <button class="btn btn-ghost btn-sm" id="btnRxClear" style="background:#f1f5f9;color:#475569;border-color:#e2e8f0">清空日志</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Record ================= -->
+  <section class="panel" id="panel-log">
+    <div class="card">
+      <h3>Test Record</h3>
+      <div class="loglist" id="loglist"><div class="empty">还没有记录。<br>到 Lab A / Lab B 按几个按钮，这里会自动记录。</div></div>
+      <div class="debugrow">
+        <button class="btn btn-primary" id="btnExport">导出 .txt</button>
+        <button class="btn btn-ghost" id="btnLogClear" style="background:#f1f5f9;color:#475569;border-color:#e2e8f0">清空记录</button>
+      </div>
+      <div class="hint">每条记录右侧 <b>✓</b> / <b>✗</b> 可标记 Pass / Fail，导出结果可直接粘进报告 Table 3。</div>
+    </div>
+  </section>
+
+  <!-- ================= Settings ================= -->
+  <div class="card">
+    <h3>Settings</h3>
+    <div class="field">
+      <div><label>行尾 Line Ending</label><div class="desc">Lab B 要求 newline-terminated</div></div>
+      <select id="selEol">
+        <option value="lf" selected>LF (\n)</option>
+        <option value="crlf">CRLF (\r\n)</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+    <div class="field">
+      <div><label>演示模式 Demo Mode</label><div class="desc">不连蓝牙，仅模拟界面与记录</div></div>
+      <button class="mini-switch" id="swDemo" role="switch" aria-checked="false" aria-label="Demo mode"></button>
+    </div>
+    <div class="field">
+      <div><label>强制扫描全部设备</label><div class="desc">找不到 HMSoft 时改用此方式</div></div>
+      <button class="mini-switch" id="swAll" role="switch" aria-checked="false" aria-label="Scan all devices"></button>
+    </div>
+  </div>
+
+  <div class="footer">
+    ECE 210 · Embedded System Design · Lab 9<br>
+    Web Bluetooth · HM-10 · FFE0 / FFE1
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     Constants
+     ========================================================= */
+  var SVC_LIST = [
+    '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 (typical)
+    '0000fff0-0000-1000-8000-00805f9b34fb', // HM-10 clone variant
+    '6e400001-b5a3-f393-e0a9-e50e24dcca9e'  // Nordic UART
+  ];
+  var CHAR_LIST = [
+    '0000ffe1-0000-1000-8000-00805f9b34fb',
+    '0000fff1-0000-1000-8000-00805f9b34fb',
+    '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
+  ];
+  var CH_NAMES = ['Red LED', 'Green LED', 'Yellow LED', 'Buzzer'];
+
+  /* =========================================================
+     State
+     ========================================================= */
+  var S = {
+    device: null,
+    server: null,
+    characteristic: null,
+    serviceUuid: '',
+    charUuid: '',
+    connected: false,
+    demo: false,
+    scanAll: false,
+    eol: 'lf',
+    outputs: [false, false, false, false],
+    log: [],
+    logSeq: 0
+  };
+
+  /* =========================================================
+     DOM helpers
+     ========================================================= */
+  function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  /* =========================================================
+     Banner + status
+     ========================================================= */
+  function banner(msg, type) {
+    var b = $('#banner');
+    if (!msg) { b.style.display = 'none'; return; }
+    b.textContent = msg;
+    b.className = 'banner' + (type ? ' ' + type : '');
+    b.style.display = 'block';
+  }
+
+  function setStatus(text, cls) {
+    $('#statusText').textContent = text;
+    var d = $('#dot');
+    d.className = 'dot' + (cls ? ' ' + cls : '');
+  }
+
+  function refreshButtons() {
+    var live = S.connected || S.demo;
+    $('#btnConnect').disabled = S.connected;
+    $('#btnDisconnect').disabled = !S.connected;
+    $all('.key, .switch, #btnRawSend, #btnExport').forEach(function (b) {
+      if (b.id === 'btnExport') return;
+      b.disabled = !live;
+    });
+    $('#btnConnect').textContent = S.connected ? '已连接' : '连接';
+  }
+
+  /* =========================================================
+     RX traffic log
+     ========================================================= */
+  function rxLine(kind, text) {
+    var box = $('#rxlog');
+    var t = new Date();
+    var stamp = String(t.getHours()).padStart(2, '0') + ':' +
+                String(t.getMinutes()).padStart(2, '0') + ':' +
+                String(t.getSeconds()).padStart(2, '0');
+    var line = el('div', kind, '[' + stamp + '] ' + text);
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  /* =========================================================
+     Test record
+     ========================================================= */
+  function nowStr() {
+    var t = new Date();
+    return String(t.getHours()).padStart(2, '0') + ':' +
+           String(t.getMinutes()).padStart(2, '0') + ':' +
+           String(t.getSeconds()).padStart(2, '0');
+  }
+
+  function addRecord(module, action, sent) {
+    S.logSeq += 1;
+    S.log.push({ id: S.logSeq, time: nowStr(), module: module, action: action, sent: sent, result: '' });
+    renderLog();
+  }
+
+  function renderLog() {
+    var box = $('#loglist');
+    box.innerHTML = '';
+    if (!S.log.length) {
+      box.appendChild(el('div', 'empty', '还没有记录。\n到 Lab A / Lab B 按几个按钮，这里会自动记录。'));
+      return;
+    }
+    S.log.forEach(function (rec) {
+      var row = el('div', 'logitem');
+      row.appendChild(el('div', 'idx', String(rec.id)));
+      var body = el('div', 'body');
+      body.appendChild(el('div', 'act', rec.action));
+      body.appendChild(el('div', 'sub', rec.module + ' · → ' + rec.sent));
+      row.appendChild(body);
+
+      var p = el('button', 'mark' + (rec.result === 'PASS' ? ' pass' : ''), '✓');
+      p.title = 'Pass';
+      p.addEventListener('click', function () {
+        rec.result = rec.result === 'PASS' ? '' : 'PASS';
+        renderLog();
+      });
+      var f = el('button', 'mark' + (rec.result === 'FAIL' ? ' fail' : ''), '✗');
+      f.title = 'Fail';
+      f.addEventListener('click', function () {
+        rec.result = rec.result === 'FAIL' ? '' : 'FAIL';
+        renderLog();
+      });
+      row.appendChild(p);
+      row.appendChild(f);
+      box.appendChild(row);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function exportLog() {
+    var out = [];
+    out.push('ECE 210 Lab 9 - BLE Console Test Record');
+    out.push('Device      : ' + (S.device ? S.device.name : (S.demo ? 'DEMO MODE' : 'N/A')));
+    out.push('Exported    : ' + new Date().toLocaleString());
+    out.push('------------------------------------------------------------');
+    out.push(['#', 'Time', 'Module', 'Action', 'Sent', 'Result'].join('\t'));
+    S.log.forEach(function (r) {
+      out.push([r.id, r.time, r.module, r.action, r.sent, r.result || '-'].join('\t'));
+    });
+    out.push('------------------------------------------------------------');
+    var pass = S.log.filter(function (r) { return r.result === 'PASS'; }).length;
+    var fail = S.log.filter(function (r) { return r.result === 'FAIL'; }).length;
+    out.push('Total: ' + S.log.length + '   PASS: ' + pass + '   FAIL: ' + fail);
+
+    var blob = new Blob([out.join('\n')], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ECE210_Lab9_TestRecord_' + Date.now() + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+
+  /* =========================================================
+     Output UI
+     ========================================================= */
+  function setOutputUI() {
+    $all('.chip').forEach(function (c) {
+      var i = parseInt(c.getAttribute('data-out'), 10);
+      c.setAttribute('data-on', S.outputs[i] ? '1' : '0');
+    });
+    $all('.switch').forEach(function (sw) {
+      var i = parseInt(sw.getAttribute('data-ch'), 10);
+      sw.setAttribute('aria-checked', S.outputs[i] ? 'true' : 'false');
+    });
+    $all('.ind').forEach(function (ind) {
+      var i = parseInt(ind.getAttribute('data-ind'), 10);
+      ind.setAttribute('data-on', S.outputs[i] ? '1' : '0');
+      ind.textContent = S.outputs[i] ? 'ON' : 'OFF';
+    });
+  }
+
+  /* =========================================================
+     Send
+     ========================================================= */
+  function endingStr() {
+    if (S.eol === 'lf') return '\n';
+    if (S.eol === 'crlf') return '\r\n';
+    return '';
+  }
+
+  function sendText(text, label, module) {
+    if (!S.connected && !S.demo) {
+      banner('还没有连接设备。请先点右上角「连接」选择 HMSoft。', 'bad');
+      return;
+    }
+    var payload = text + endingStr();
+    var shown = text + (S.eol === 'lf' ? '\\n' : S.eol === 'crlf' ? '\\r\\n' : '');
+    rxLine('tx', '→ ' + shown);
+
+    if (S.demo) {
+      addRecord(module, label, shown);
+      return;
+    }
+
+    var c = S.characteristic;
+    if (!c) { banner('连接对象丢失，请重新连接。', 'bad'); return; }
+
+    var data = new TextEncoder().encode(payload);
+    var p;
+    try {
+      if (c.properties.writeWithoutResponse && typeof c.writeValueWithoutResponse === 'function') {
+        p = c.writeValueWithoutResponse(data);
+      } else {
+        p = c.writeValue(data);
+      }
+    } catch (e) {
+      banner('发送失败：' + e.message, 'bad');
+      return;
+    }
+    Promise.resolve(p).then(function () {
+      addRecord(module, label, shown);
+    }).catch(function (e) {
+      banner('发送失败：' + (e && e.message ? e.message : e), 'bad');
+      rxLine('sys', '!! ' + (e && e.message ? e.message : e));
+    });
+  }
+
+  /* =========================================================
+     Bluetooth
+     ========================================================= */
+  function onDisconnected() {
+    S.connected = false;
+    S.characteristic = null;
+    S.server = null;
+    setStatus('已断开', 'err');
+    rxLine('sys', '设备断开');
+    refreshButtons();
+  }
+
+  function pickCharacteristic(service) {
+    return service.getCharacteristics().then(function (chars) {
+      if (!chars.length) return null;
+      var withProp = chars.filter(function (c) {
+        return c.properties.write || c.properties.writeWithoutResponse;
+      });
+      if (withProp.length) return withProp[0];
+      for (var i = 0; i < CHAR_LIST.length; i++) {
+        var uuid = CHAR_LIST[i];
+        var hit = chars.filter(function (c) { return c.uuid === uuid; });
+        if (hit.length) return hit[0];
+      }
+      return chars.length === 1 ? chars[0] : null;
+    });
+  }
+
+  function connect() {
+    if (!navigator.bluetooth) {
+      banner('这个浏览器不支持 Web Bluetooth。请用 Chrome / Edge，并且页面必须是 https:// 打开。', 'bad');
+      return;
+    }
+    setStatus('搜索中…', 'wait');
+    banner('');
+
+    var opts = { optionalServices: SVC_LIST };
+    if (S.scanAll) {
+      opts.acceptAllDevices = true;
+    } else {
+      opts.filters = [
+        { namePrefix: 'HM' },
+        { namePrefix: 'hm' },
+        { services: [SVC_LIST[0]] }
+      ];
+    }
+
+    navigator.bluetooth.requestDevice(opts).then(function (device) {
+      S.device = device;
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+      rxLine('sys', '选择设备：' + device.name + ' (' + device.id + ')');
+      setStatus('连接中…', 'wait');
+      return device.gatt.connect();
+    }).then(function (server) {
+      S.server = server;
+      var chain = Promise.reject(new Error('no service'));
+
+      SVC_LIST.forEach(function (uuid) {
+        chain = chain.catch(function () {
+          return server.getPrimaryService(uuid).then(function (svc) {
+            S.serviceUuid = uuid;
+            return pickCharacteristic(svc).then(function (ch) {
+              if (!ch) throw new Error('no characteristic');
+              S.characteristic = ch;
+              return ch;
+            });
+          });
+        });
+      });
+
+      chain = chain.catch(function () {
+        return server.getPrimaryServices().then(function (svcs) {
+          if (!svcs.length) throw new Error('no service');
+          var i = 0;
+          var next = function () {
+            if (i >= svcs.length) throw new Error('no writable characteristic');
+            var svc = svcs[i++];
+            return pickCharacteristic(svc).then(function (ch) {
+              if (!ch) return next();
+              S.serviceUuid = svc.uuid;
+              S.characteristic = ch;
+              return ch;
+            });
+          };
+          return next();
+        });
+      });
+
+      return chain;
+    }).then(function (ch) {
+      S.charUuid = ch.uuid;
+      S.connected = true;
+
+      // notify (optional, for debug feedback)
+      try {
+        if (ch.properties.notify || ch.properties.indicate) {
+          ch.startNotifications().then(function () {
+            ch.addEventListener('characteristicvaluechanged', function (ev) {
+              var dv = ev.target.value;
+              var txt = new TextDecoder().decode(dv);
+              rxLine('rx', '← ' + txt.replace(/[\r\n]+$/, ''));
+            });
+            rxLine('sys', '通知已开启（可接收固件回传）');
+          }).catch(function () {
+            rxLine('sys', '通知开启失败（不影响发送）');
+          });
+        }
+      } catch (e) { /* ignore */ }
+
+      setStatus(S.device.name || 'HM-10', 'on');
+      banner('已连接 ' + (S.device.name || '') + '　服务 ' + S.serviceUuid.slice(4, 8).toUpperCase() +
+             ' · 特征 ' + S.charUuid.slice(4, 8).toUpperCase(), 'ok');
+      rxLine('sys', '连接成功');
+      refreshButtons();
+    }).catch(function (e) {
+      S.connected = false;
+      setStatus('未连接', 'err');
+      var msg = e && e.message ? e.message : String(e);
+      if (/cancelled|canceled|user/i.test(msg)) {
+        banner('已取消选择设备。', '');
+      } else {
+        banner('连接失败：' + msg + '　—— 请确认 HM-10 已上电、手机蓝牙与定位已开启。', 'bad');
+      }
+      rxLine('sys', '!! ' + msg);
+      refreshButtons();
+    });
+  }
+
+  function disconnect() {
+    if (S.device && S.device.gatt && S.device.gatt.connected) {
+      S.device.gatt.disconnect();
+    } else {
+      onDisconnected();
+    }
+  }
+
+  /* =========================================================
+     UI wiring
+     ========================================================= */
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // tabs
+    $all('#tabs button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        $all('#tabs button').forEach(function (b) { b.classList.remove('active'); });
+        $all('.panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        $('#panel-' + btn.getAttribute('data-tab')).classList.add('active');
+      });
+    });
+
+    // connectivity check
+    if (!navigator.bluetooth) {
+      banner('⚠ 当前浏览器不支持 Web Bluetooth，或页面不是 https:// 打开。请用 Chrome 访问部署后的网址。', 'bad');
+    }
+
+    // connect
+    $('#btnConnect').addEventListener('click', connect);
+    $('#btnDisconnect').addEventListener('click', disconnect);
+
+    // Lab A keys
+    $all('.key[data-cmd]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var cmd = btn.getAttribute('data-cmd');
+        var label = btn.getAttribute('data-label');
+        var idx = { 'A': 0, 'a': 0, 'B': 1, 'b': 1, 'C': 2, 'c': 2, 'D': 3, 'd': 3 }[cmd];
+        if (cmd === 'X') {
+          S.outputs = [false, false, false, false];
+        } else if (cmd === cmd.toUpperCase()) {
+          S.outputs[idx] = true;
+        } else {
+          S.outputs[idx] = false;
+        }
+        setOutputUI();
+        if (navigator.vibrate) navigator.vibrate(18);
+        sendText(cmd, label, 'Lab A');
+      });
+    });
+
+    // Lab B toggles
+    $all('.switch').forEach(function (sw) {
+      sw.addEventListener('click', function () {
+        var ch = parseInt(sw.getAttribute('data-ch'), 10);
+        var on = !S.outputs[ch];
+        S.outputs[ch] = on;
+        setOutputUI();
+        if (navigator.vibrate) navigator.vibrate(18);
+        sendText('T' + ch + ':' + (on ? '1' : '0'), CH_NAMES[ch] + ' ' + (on ? 'ON' : 'OFF'), 'Lab B');
+      });
+    });
+
+    // ALL OFF
+    $('#btnAllOff').addEventListener('click', function () {
+      S.outputs = [false, false, false, false];
+      setOutputUI();
+      if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
+      sendText('B0:P', 'ALL OFF', 'Lab B');
+    });
+
+    // raw send
+    $('#btnRawSend').addEventListener('click', function () {
+      var v = $('#rawInput').value;
+      if (!v) { return; }
+      sendText(v, 'RAW "' + v + '"', 'Debug');
+    });
+    $('#rawInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); $('#btnRawSend').click(); }
+    });
+    $('#btnRawClear').addEventListener('click', function () { $('#rawInput').value = ''; });
+    $('#btnRxClear').addEventListener('click', function () { $('#rxlog').innerHTML = ''; });
+
+    // log
+    $('#btnExport').addEventListener('click', exportLog);
+    $('#btnLogClear').addEventListener('click', function () {
+      if (!S.log.length) return;
+      if (confirm('确定清空全部测试记录？')) { S.log = []; S.logSeq = 0; renderLog(); }
+    });
+
+    // settings
+    $('#selEol').addEventListener('change', function () { S.eol = this.value; });
+    $('#swDemo').addEventListener('click', function () {
+      S.demo = !S.demo;
+      this.setAttribute('aria-checked', S.demo ? 'true' : 'false');
+      if (S.demo) {
+        setStatus('演示模式', 'wait');
+        banner('演示模式已开启：按键只记录、不发送。关闭后恢复真实蓝牙。', '');
+      } else {
+        setStatus(S.connected ? (S.device ? S.device.name : '已连接') : '未连接', S.connected ? 'on' : '');
+        banner('');
+      }
+      refreshButtons();
+    });
+    $('#swAll').addEventListener('click', function () {
+      S.scanAll = !S.scanAll;
+      this.setAttribute('aria-checked', S.scanAll ? 'true' : 'false');
+    });
+
+    setOutputUI();
+    renderLog();
+    refreshButtons();
+    rxLine('sys', 'BLE Console 就绪');
+  });
+})();
+</script>
+</body>
+</html>
